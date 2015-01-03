@@ -7,6 +7,9 @@ authors = ["Ty Overby <ty@pre-alpha.com>"]
 [dependencies.image]
 git = "https://github.com/PistonDevelopers/image.git"
 
+[dependencies.lux]
+path = "../lux/"
+
 [[bin]]
 path = "./src/bin.rs"
 name = "gen_art"

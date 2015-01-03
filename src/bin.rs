@@ -1,4 +1,5 @@
-extern crate image;
+extern crate lux;
+
 use std::rand::{XorShiftRng, SeedableRng};
 use std::io::File;
 use weighted_sample::WeightedSample;
@@ -111,27 +112,5 @@ fn eval_tripple(pt: &ProgramTripple, v: (u8, u8, u8)) ->
     let &(ref pr, ref pg, ref pb) = pt;
     (pr.eval(v), pg.eval(v), pb.eval(v))
 }
-
-fn run_gen(progs: &ProgramTripple, id: u32) {
-    let name = format!("./out/{:03}", id);
-
-    println!("{}_*.png", name);
-    for t in range(0u, 256) {
-        let name = format!("{}_{:03}.png", name, t);
-        let fout = File::create(&Path::new(name.clone())).unwrap();
-        let imbuf = image::ImageBuf::from_fn(256, 256, |x, y| {
-            let (r,g,b) = eval_tripple(progs, (x as u8, y as u8, t as u8));
-            image::Rgb(r,g,b)
-        });
-        let _ = image::ImageRgb8(imbuf).save(fout, image::PNG).unwrap();
-    }
-}
-
 fn main() {
-    let mut rng = std::rand::weak_rng();
-    for i in range(1u32, 100) {
-        rng.reseed([0x193a6754, 0xa8a7d469, 0x97830e05, i]);
-        let progs = Program::new_tripple(&mut rng);
-        run_gen(&progs, i);
-    }
 }
