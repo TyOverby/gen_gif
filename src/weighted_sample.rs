@@ -1,7 +1,7 @@
-use std::rand::Rng;
+use rand::Rng;
 
 pub struct WeightedSample<T, R> {
-    options: Vec<((u32, u32), Box<|&mut R|: 'static -> T>)>,
+    options: Vec<((u32, u32), Box<Fn(&mut R) -> T>)>,
     total: u32
 }
 
@@ -13,8 +13,8 @@ impl <T, R> WeightedSample<T, R> where R: Rng{
         }
     }
 
-    pub fn option(&mut self, weight: u32, f: Box<|&mut R|: 'static -> T>) {
-        self.options.push(((self.total, self.total + weight), f));
+    pub fn option<F: 'static + Fn(&mut R)-> T>(&mut self, weight: u32, f: F) {
+        self.options.push(((self.total, self.total + weight), Box::new(f)));
         self.total += weight;
     }
 
@@ -22,10 +22,10 @@ impl <T, R> WeightedSample<T, R> where R: Rng{
         let i = r.gen_range(0, self.total);
         let f = self.options
                     .iter_mut()
-                    .filter(|&&((s, e), _)| i >= s && i <= e)
+                    .filter(|&&mut ((s, e), _)| i >= s && i <= e)
                     .nth(0)
                     .unwrap();
-        let &(_, ref mut f) = f;
+        let &mut (_, ref mut f) = f;
         (**f)(r)
     }
 }
