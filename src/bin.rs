@@ -7,6 +7,8 @@ use rand::XorShiftRng;
 use weighted_sample::WeightedSample;
 use rustc_serialize::json;
 use lux::prelude::*;
+use lux::interactive::Event;
+use lux::graphics::ColorVertex;
 use std::fs::File;
 use std::io::{Write, Read};
 
@@ -148,27 +150,32 @@ fn eval_tripple(pt: &ProgramTripple, v: (u8, u8, u8)) ->
     (pr.eval(v), pg.eval(v), pb.eval(v))
 }
 
-fn display_program(p: &ProgramTripple, lux: &mut Window) {
+fn display_program(p: &ProgramTripple, lux: &mut Window, wait_space: bool) {
     let mut iter = 0;
     let mut first = true;
     while lux.is_open() && (first || iter != 0) {
-        let mut frame = lux.cleared_frame(rgb(0, 0, 0));
-        {
-            let pix = nd_iter::iter_2d(0 .. 256, 0 .. 256).map(|(x, y)|{
-                let c = eval_tripple(&p, (x as u8, y as u8, iter));
-                let hue = (c.0 as f32 / 255.0) * 240.0;
-                ((x as f32, y as f32), hsv(hue, 1.0, 1.0)) //, c.1 as f32 / 255.0, c.2 as f32 / 255.0))
-            });
-            frame.draw_pixels(pix);
-        }
+        if !wait_space || lux.is_key_pressed(' ') {
+            let mut frame = lux.cleared_frame(rgb(0, 0, 0));
+            {
+                let pix = nd_iter::iter_2d(0 .. 256, 0 .. 256).map(|(x, y)|{
+                    let c = eval_tripple(&p, (x as u8, y as u8, iter));
+                    let h = (c.0 as f32 / 255.0) * 240.0;
+                    let s = (c.1 as f32 / 255.0);
+                    let v = (c.2 as f32 / 255.0);
+                    ((x as f32, y as f32), hsv(h, s, v))
+                });
+                let pix: Vec<_> = pix.map(|(pos, c)| ColorVertex {pos: [pos.0, pos.1], color: c}).collect();
+                frame.draw_points(&pix);
+            }
 
-        first = false;
-        iter += 1;
+            first = false;
+            iter += 1;
+        }
     }
 }
 
 fn run_generations() {
-    let mut lux = Window::new().unwrap();
+    let mut lux = Window::new_with_defaults().unwrap();
     let mut rand = XorShiftRng::new_unseeded();
     let mut iter: u8 = 0;
     let rand_id: u64 = rand::random();
@@ -176,7 +183,7 @@ fn run_generations() {
     while lux.is_open() {
         iter += 1;
         let progs = Program::new_tripple(&mut rand);
-        display_program(&progs, &mut lux);
+        display_program(&progs, &mut lux, false);
 
         let mut should_save = false;
         for event in lux.events() {
@@ -187,7 +194,7 @@ fn run_generations() {
 
         if should_save {
             let string_repr = json::encode(&progs).unwrap();
-            let filename = format!("{}-{}.json", rand_id, iter);
+            let filename = format!("examples/{}-{}.json", rand_id, iter);
             File::create(&filename)
                  .and_then(|mut f| f.write_all(string_repr.as_bytes()))
                  .unwrap();
@@ -197,7 +204,7 @@ fn run_generations() {
 }
 
 fn run_single(name: &str) {
-    let mut lux = Window::new().unwrap();
+    let mut lux = Window::new_with_defaults().unwrap();
     let mut string_buffer = String::new();
     File::open(name)
          .and_then(|mut f| f.read_to_string(&mut string_buffer))
@@ -205,7 +212,7 @@ fn run_single(name: &str) {
     let program = json::decode(&string_buffer[..])
                        .ok().expect("expected decoding to work.");
 
-    display_program(&program, &mut lux);
+    display_program(&program, &mut lux, true);
 }
 
 fn main() {
