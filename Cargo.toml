@@ -4,9 +4,6 @@ name = "gen_art"
 version = "0.0.1"
 authors = ["Ty Overby <ty@pre-alpha.com>"]
 
-[dependencies.image]
-git = "https://github.com/PistonDevelopers/image.git"
-
 [dependencies.lux]
 path = "../lux/"
 
@@ -18,3 +15,4 @@ name = "gen_art"
 nd_iter = "*"
 rand = "*"
 rustc-serialize = "*"
+image = "*"

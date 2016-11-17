@@ -157,15 +157,33 @@ fn display_program(p: &ProgramTripple, lux: &mut Window, wait_space: bool) {
         if !wait_space || lux.is_key_pressed(' ') {
             let mut frame = lux.cleared_frame(rgb(0, 0, 0));
             {
-                let pix = nd_iter::iter_2d(0 .. 256, 0 .. 256).map(|(x, y)|{
+                let mut out = Vec::with_capacity(256 * 256 * 4);
+                for (x, y) in nd_iter::iter_2d(0 .. 256, 0 .. 256) {
                     let c = eval_tripple(&p, (x as u8, y as u8, iter));
                     let h = (c.0 as f32 / 255.0) * 240.0;
-                    let s = (c.1 as f32 / 255.0);
-                    let v = (c.2 as f32 / 255.0);
-                    ((x as f32, y as f32), hsv(h, s, v))
-                });
-                let pix: Vec<_> = pix.map(|(pos, c)| ColorVertex {pos: [pos.0, pos.1], color: c}).collect();
-                frame.draw_points(&pix);
+                    let s = 1.0;
+                    let v = c.2 as f32 / 255.0;
+                    let x = x * 2;
+                    let y = y * 2;
+                    let color = hsv(h, s, v);
+                    out.push(ColorVertex {
+                        pos: [x as f32, y as f32],
+                        color: color
+                    });
+                    out.push(ColorVertex {
+                        pos: [(x + 1) as f32, y as f32],
+                        color: color
+                    });
+                    out.push(ColorVertex {
+                        pos: [x as f32, (y + 1) as f32],
+                        color: color
+                    });
+                    out.push(ColorVertex {
+                        pos: [(x + 1) as f32, (y + 1) as f32],
+                        color: color
+                    });
+                }
+                frame.draw(Pixels{  pixels: &out, .. Default::default()}).unwrap();
             }
 
             first = false;
