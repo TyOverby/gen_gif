@@ -1,0 +1,1 @@
+{"variant":"Add","fields":[{"variant":"Sub","fields":["X","T"]},{"variant":"Mul","fields":["X",{"variant":"Xor","fields":["X","X"]}]}]}
