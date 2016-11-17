@@ -33,8 +33,6 @@ enum Program {
     Div(Box<Program>, Box<Program>),
 }
 
-type ProgramTripple = (Program, Program, Program);
-
 impl Program {
     fn new_random(rng: &mut XorShiftRng) -> Program {
         fn gen(rng: &mut XorShiftRng) -> Program {
@@ -58,19 +56,17 @@ impl Program {
         ws.sample(rng)
     }
 
-    fn new_tripple(rng: &mut XorShiftRng) -> ProgramTripple {
-        let mut out = vec![];
-        while out.len() != 3 {
+    fn new_interesting(rng: &mut XorShiftRng) -> Program {
+        loop {
             let p = Program::new_random(rng);
             if p.is_interesting() {
-                out.push(p);
+                return p;
             }
         }
-        (out.pop().unwrap(), out.pop().unwrap(), out.pop().unwrap())
     }
 
-    fn eval(&self, (x,y,t): (u8,u8,u8)) -> u8 {
-        let v = (x,y,t);
+    fn eval(&self, (x, y, t): (u8,u8,u8)) -> u8 {
+        let v = (x, y, t);
         match *self {
             Program::Xor(ref a, ref b) => a.eval(v) ^ b.eval(v),
             Program::And(ref a, ref b) => a.eval(v) & b.eval(v),
@@ -144,50 +140,36 @@ impl Program {
     }
 }
 
-fn eval_tripple(pt: &ProgramTripple, v: (u8, u8, u8)) ->
-(u8, u8, u8) {
-    let &(ref pr, ref pg, ref pb) = pt;
-    (pr.eval(v), pg.eval(v), pb.eval(v))
+fn colormap() -> Vec<[f32; 4]> {
+    let mut out = vec![];
+    for i in 0 .. 256 {
+        let h = (i as f32 / 255.0) * 240.0;
+        out.push(hsv(h, 1.0, 1.0));
+    }
+    out
 }
 
-fn display_program(p: &ProgramTripple, lux: &mut Window, wait_space: bool) {
-    let mut iter = 0;
+fn display_program(p: &Program, lux: &mut Window, wait_space: bool) {
+    let mut iteration = 0;
     let mut first = true;
-    while lux.is_open() && (first || iter != 0) {
+    let colormap = colormap();
+    while lux.is_open() && (first || iteration != 0) {
         if !wait_space || lux.is_key_pressed(' ') {
             let mut frame = lux.cleared_frame(rgb(0, 0, 0));
             {
                 let mut out = Vec::with_capacity(256 * 256 * 4);
                 for (x, y) in nd_iter::iter_2d(0 .. 256, 0 .. 256) {
-                    let c = eval_tripple(&p, (x as u8, y as u8, iter));
-                    let h = (c.0 as f32 / 255.0) * 240.0;
-                    let s = 1.0;
-                    let v = c.2 as f32 / 255.0;
-                    let x = x * 2;
-                    let y = y * 2;
-                    let color = hsv(h, s, v);
+                    let c = p.eval((x as u8, y as u8, iteration));
                     out.push(ColorVertex {
                         pos: [x as f32, y as f32],
-                        color: color
-                    });
-                    out.push(ColorVertex {
-                        pos: [(x + 1) as f32, y as f32],
-                        color: color
-                    });
-                    out.push(ColorVertex {
-                        pos: [x as f32, (y + 1) as f32],
-                        color: color
-                    });
-                    out.push(ColorVertex {
-                        pos: [(x + 1) as f32, (y + 1) as f32],
-                        color: color
+                        color: colormap[c as usize],
                     });
                 }
                 frame.draw(Pixels{  pixels: &out, .. Default::default()}).unwrap();
             }
 
             first = false;
-            iter += 1;
+            iteration += 1;
         }
     }
 }
@@ -200,8 +182,8 @@ fn run_generations() {
 
     while lux.is_open() {
         iter += 1;
-        let progs = Program::new_tripple(&mut rand);
-        display_program(&progs, &mut lux, false);
+        let prog = Program::new_interesting(&mut rand);
+        display_program(&prog, &mut lux, false);
 
         let mut should_save = false;
         for event in lux.events() {
@@ -211,7 +193,7 @@ fn run_generations() {
         }
 
         if should_save {
-            let string_repr = json::encode(&progs).unwrap();
+            let string_repr = json::encode(&prog).unwrap();
             let filename = format!("examples/{}-{}.json", rand_id, iter);
             File::create(&filename)
                  .and_then(|mut f| f.write_all(string_repr.as_bytes()))
